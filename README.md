@@ -1,1 +1,1 @@
-# linkdin
+# linkedin
