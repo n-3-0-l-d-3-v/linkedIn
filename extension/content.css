@@ -1,0 +1,119 @@
+/* Vouch injected surfaces.
+   Everything is namespaced under .vouch- and uses `all: revert` guards where
+   LinkedIn's global styles would otherwise bleed in. */
+
+.vouch-card {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  color: #1b1f23 !important;
+  background: #fff !important;
+  border: 1px solid #dfe3e8 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 18px rgba(0, 0, 0, 0.06) !important;
+  margin: 0 0 12px !important;
+  overflow: hidden !important;
+  position: relative !important;
+  z-index: 5 !important;
+}
+
+.vouch-head {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 10px 14px !important;
+  border-bottom: 1px solid #eef1f4 !important;
+  background: linear-gradient(90deg, #f7fbff, #fff) !important;
+}
+.vouch-mark {
+  width: 22px; height: 22px; border-radius: 5px; background: #0a66c2; color: #fff;
+  display: grid; place-items: center; font-weight: 700; font-size: 12px; flex: none;
+}
+.vouch-head strong { font-size: 13.5px !important; font-weight: 700 !important; }
+.vouch-sub { color: #8a949e; font-size: 11.5px; }
+.vouch-spacer { flex: 1; }
+
+.vouch-body { padding: 14px !important; }
+
+.vouch-pill {
+  display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 100px;
+  font-size: 11px; font-weight: 700; background: #eef1f4; color: #56606a; white-space: nowrap;
+}
+.vouch-active, .vouch-clear, .vouch-green-pill { background: #e6f4ec; color: #0a7c42; }
+.vouch-slow, .vouch-caution { background: #fdf3e2; color: #915907; }
+.vouch-stale, .vouch-high, .vouch-red-pill { background: #fdeceb; color: #b42318; }
+.vouch-low, .vouch-blue-pill { background: #e8f0fe; color: #0a66c2; }
+
+.vouch-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #8a949e;
+}
+.vouch-mt { margin-top: 14px; margin-bottom: 6px; }
+.vouch-note { font-size: 11.5px; color: #56606a; margin-top: 2px; }
+.vouch-foot {
+  margin-top: 14px; padding-top: 10px; border-top: 1px dashed #eef1f4;
+  font-size: 10.5px; color: #8a949e;
+}
+
+.vouch-split { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #eef1f4; border-radius: 8px; overflow: hidden; }
+.vouch-split > div { padding: 10px 12px; }
+.vouch-now { background: #fafbfc; border-right: 1px solid #eef1f4; }
+.vouch-big { font-size: 24px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; }
+.vouch-grey { color: #8a949e; }
+.vouch-blue { color: #0a66c2; }
+
+.vouch-row { display: flex; align-items: center; gap: 12px; }
+.vouch-fitrow { margin-top: 14px; }
+.vouch-score {
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  font-weight: 700; font-size: 15px; flex: none; background: #eef1f4; color: #56606a;
+}
+.vouch-score.vouch-strong { background: #e6f4ec; color: #0a7c42; }
+.vouch-score.vouch-viable { background: #e8f0fe; color: #0a66c2; }
+.vouch-score.vouch-stretch { background: #fdf3e2; color: #915907; }
+.vouch-score.vouch-weak { background: #fdeceb; color: #b42318; }
+
+.vouch-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.vouch-chip {
+  font-size: 11px; padding: 3px 8px; border-radius: 100px; background: #e6f4ec; color: #0a7c42; font-weight: 600;
+}
+
+.vouch-people { display: flex; flex-direction: column; gap: 8px; }
+.vouch-person {
+  display: flex; gap: 10px; align-items: flex-start;
+  border: 1px solid #eef1f4; border-radius: 8px; padding: 9px 11px; background: #fbfcfd;
+}
+.vouch-avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex: none; color: #fff; font-size: 11px; font-weight: 700;
+  display: grid; place-items: center; background: linear-gradient(135deg, #0a66c2, #378fe9);
+}
+.vouch-person-main { flex: 1; min-width: 0; }
+.vouch-person-name { font-weight: 600; font-size: 12.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.vouch-path { font-size: 11.5px; color: #0a7c42; font-weight: 600; margin-top: 3px; }
+.vouch-mini {
+  width: 30px; height: 30px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  font-size: 12px; font-weight: 700; background: #eef1f4; color: #56606a;
+}
+.vouch-mini.vouch-clear { background: #e6f4ec; color: #0a7c42; }
+
+.vouch-alert { border-radius: 8px; padding: 11px 13px; }
+.vouch-alert.vouch-red { background: #fdeceb; border: 1px solid #f5c2be; }
+.vouch-alert.vouch-amber { background: #fdf3e2; border: 1px solid #f2dcb4; }
+.vouch-alert.vouch-green { background: #e6f4ec; border: 1px solid #b7dcc7; }
+.vouch-alert.vouch-blue { background: #e8f0fe; border: 1px solid #bcd6f5; }
+
+.vouch-list { margin: 0 !important; padding-left: 16px !important; }
+.vouch-list li { margin-bottom: 9px !important; font-size: 12px !important; }
+.vouch-excerpt {
+  display: inline-block; margin-top: 4px; background: #fdeceb; color: #b42318;
+  padding: 1px 6px; border-radius: 3px; font-size: 11px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.vouch-actions { display: flex; gap: 8px; margin-top: 12px; }
+.vouch-btn {
+  border: 1px solid transparent; border-radius: 100px; padding: 6px 14px;
+  font-size: 12.5px; font-weight: 600; cursor: pointer; background: #0a66c2; color: #fff;
+}
+.vouch-btn-danger { background: #b42318; }
+.vouch-btn-quiet { background: transparent; color: #56606a; border-color: #dfe3e8; }
+.vouch-btn:disabled { opacity: 0.6; cursor: default; }
