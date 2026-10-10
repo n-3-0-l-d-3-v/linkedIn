@@ -20,6 +20,10 @@ import {
   sweepExpiredReferrals,
 } from './services.js';
 import { computeFit, assessMessage, mintHiringToken, verifyHiringToken, SHIELD_PATTERNS } from './engine/index.js';
+import {
+  withValidation, requireString, optionalString, requireBoolean,
+  optionalBoolean, requireOneOf, optionalStringArray, optionalInt, failWith,
+} from './validate.js';
 
 const app = express();
 const PORT = process.env.PORT ?? 4180;
@@ -143,16 +147,22 @@ app.get('/api/referral-plan', (req, res) => {
  *   - a fit blocker (e.g. asking two levels up) refuses the send
  *   - a referrer with no capacity left cannot be assigned
  */
-app.post('/api/referrals', (req, res) => {
-  const { studentId, jobId, referrerId, pitch, artifactIds = [] } = req.body ?? {};
+app.post('/api/referrals', withValidation((req, res) => {
+  const body = req.body ?? {};
+  const studentId = requireString(body.studentId, 'studentId');
+  const jobId = requireString(body.jobId, 'jobId');
+  const referrerId = requireString(body.referrerId, 'referrerId');
+  const pitchRaw = requireString(body.pitch, 'pitch', { minLength: 0, maxLength: 4000 });
+  if (pitchRaw.length < 40) {
+    failWith('A referral packet needs a pitch of at least 40 characters. Templated one-liners are what made the current feature ignorable.');
+  }
+  const pitch = pitchRaw;
+  const artifactIds = optionalStringArray(body.artifactIds, 'artifactIds');
+
   const student = db.person(studentId);
   const job = db.job(jobId);
   const referrer = db.person(referrerId);
-
   if (!student || !job || !referrer) return fail(res, 400, 'unknown student, job, or referrer');
-  if (!pitch || pitch.trim().length < 40) {
-    return fail(res, 422, 'A referral packet needs a pitch of at least 40 characters. Templated one-liners are what made the current feature ignorable.');
-  }
 
   const fit = computeFit(student, job);
   if (fit.blockers.length > 0) {
@@ -182,7 +192,7 @@ app.post('/api/referrals', (req, res) => {
   db.logEvent('referral.sent', { requestId: record.id, studentId, jobId, referrerId, fitScore: fit.score });
 
   ok(res, record);
-});
+}));
 
 app.get('/api/referrals/inbox/:employeeId', (req, res) => {
   const data = referrerInbox(req.params.employeeId);
@@ -195,11 +205,16 @@ app.get('/api/referrals/inbox/:employeeId', (req, res) => {
  * pipeline, never onto the referrer's feed. Public vouching is the social risk
  * that makes employees decline people they would privately support.
  */
-app.post('/api/referrals/:id/decision', (req, res) => {
-  const { action, note } = req.body ?? {};
+app.post('/api/referrals/:id/decision', withValidation((req, res) => {
+  const body = req.body ?? {};
+  const action = requireOneOf(body.action, ['refer', 'decline', 'request_info'], 'action');
+  const note = optionalString(body.note, 'note', { maxLength: 2000 });
+
   const request = db.referralRequest(req.params.id);
   if (!request) return fail(res, 404, 'referral request not found');
-  if (!['refer', 'decline', 'request_info'].includes(action)) return fail(res, 400, 'unknown action');
+  if (request.status !== 'pending') {
+    return fail(res, 409, `This packet is already ${request.status} — a decision can only be made once.`);
+  }
 
   const statusMap = { refer: 'referred', decline: 'declined', request_info: 'info_requested' };
   const patch = {
@@ -224,21 +239,36 @@ app.post('/api/referrals/:id/decision', (req, res) => {
 
   db.logEvent('referral.decision', { requestId: request.id, action });
   ok(res, updated);
-});
+}));
 
-/** Referral Office Hours toggle — flips supply from reactive to discoverable. */
-app.post('/api/office-hours/:employeeId', (req, res) => {
-  const { open, note, capacity } = req.body ?? {};
+/**
+ * Referral Office Hours toggle — flips supply from reactive to discoverable.
+ *
+ * Every field is optional (a caller may update just the note, or just
+ * capacity), but a field that IS present must be the right type — and
+ * critically, `open` is only written when explicitly provided. The previous
+ * `officeHoursOpen: !!open` both accepted truthy strings like "no" as true,
+ * and silently closed office hours on any partial update that omitted `open`
+ * entirely. Neither is acceptable for a field other clients (the extension,
+ * a future mobile client) will eventually call with partial bodies.
+ */
+app.post('/api/office-hours/:employeeId', withValidation((req, res) => {
+  const body = req.body ?? {};
+  const open = optionalBoolean(body.open, 'open');
+  const note = optionalString(body.note, 'note', { maxLength: 500 });
+  const capacity = optionalInt(body.capacity, 'capacity', { min: 0, max: 50 });
+
   const employee = db.person(req.params.employeeId);
   if (!employee) return fail(res, 404, 'employee not found');
+
   const updated = db.update('people', employee.id, {
-    officeHoursOpen: !!open,
-    officeHoursNote: note ?? employee.officeHoursNote ?? null,
-    ...(Number.isInteger(capacity) ? { monthlyReferralCapacity: capacity } : {}),
+    ...(open !== undefined ? { officeHoursOpen: open } : {}),
+    ...(note !== null ? { officeHoursNote: note } : {}),
+    ...(capacity !== undefined ? { monthlyReferralCapacity: capacity } : {}),
   });
-  db.logEvent('officehours.updated', { employeeId: employee.id, open: !!open });
+  db.logEvent('officehours.updated', { employeeId: employee.id, open: open ?? employee.officeHoursOpen });
   ok(res, updated);
-});
+}));
 
 app.get('/api/office-hours', (_req, res) => {
   const open = db
@@ -292,8 +322,12 @@ app.post('/api/shield/assess', (req, res) => {
 });
 
 /** Report an account. Reports feed provenance risk for every future recipient. */
-app.post('/api/shield/report', (req, res) => {
-  const { messageId, reporterId, reason } = req.body ?? {};
+app.post('/api/shield/report', withValidation((req, res) => {
+  const body = req.body ?? {};
+  const messageId = requireString(body.messageId, 'messageId');
+  const reporterId = optionalString(body.reporterId, 'reporterId');
+  const reason = optionalString(body.reason, 'reason', { maxLength: 500 });
+
   const message = db.message(messageId);
   if (!message) return fail(res, 404, 'message not found');
 
@@ -309,7 +343,7 @@ app.post('/api/shield/report', (req, res) => {
   db.insert('reports', report);
   db.logEvent('shield.reported', { messageId, senderId: message.senderId, reason: report.reason });
   ok(res, report);
-});
+}));
 
 /**
  * Warning interaction telemetry. Whether students heed or bypass a warning is
