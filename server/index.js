@@ -19,7 +19,7 @@ import { db } from './db.js';
 import {
   referralPlan, referrerInbox, inbox, assessOne,
   trustDashboard, rankedJobs, jobWithLiveness, credibilityOf,
-  sweepExpiredReferrals, sentReferrals,
+  sweepExpiredReferrals, sentReferrals, pilotMetrics, pilotExportCsv,
 } from './services.js';
 import { computeFit, assessMessage, mintHiringToken, verifyHiringToken, SHIELD_PATTERNS } from './engine/index.js';
 import {
@@ -405,6 +405,18 @@ app.get('/api/dashboard/:companyId', (req, res) => {
   const data = trustDashboard(req.params.companyId);
   if (!data) return fail(res, 404, 'company not found');
   ok(res, data);
+});
+
+// ---------------------------------------------------------------------------
+// Pilot metrics
+// ---------------------------------------------------------------------------
+
+app.get('/api/pilot/metrics', (_req, res) => ok(res, pilotMetrics()));
+
+app.get('/api/pilot/export.csv', (_req, res) => {
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="vouch-pilot.csv"');
+  res.send(pilotExportCsv());
 });
 
 app.use((err, _req, res, _next) => {
