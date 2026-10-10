@@ -152,8 +152,17 @@ export const foldHomoglyphs = (s = '') =>
 /** Pull bare domains out of free text (URLs and email addresses alike). */
 export const extractDomains = (text = '') => {
   const out = new Set();
+
+  // Email addresses first: only the part after "@" is a domain. Without this,
+  // "priya.recruits@gmail.com" yielded a bogus domain "priya.recruits" that
+  // was then scored as an unrecognised site.
+  const emailRe = /[a-z0-9._%+-]+@([a-z0-9-]+(?:\.[a-z0-9-]+)+)/gi;
+  let rest = String(text);
+  for (const [, host] of rest.matchAll(emailRe)) out.add(host.toLowerCase().replace(/\.$/, ''));
+  rest = rest.replace(emailRe, ' ');
+
   const re = /(?:https?:\/\/)?(?:www\.)?([a-z0-9-]+(?:\.[a-z0-9-]+)+)/gi;
-  for (const [, host] of String(text).matchAll(re)) {
+  for (const [, host] of rest.matchAll(re)) {
     const clean = host.toLowerCase().replace(/\.$/, '');
     if (clean.split('.').length >= 2) out.add(clean);
   }
