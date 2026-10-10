@@ -258,7 +258,7 @@ async function mountShield() {
   const res = await send({
     type: 'assess',
     body: text,
-    sender: { identityVerified: false, workplaceVerified: false, connections: 0, createdAt: null },
+    sender: {}, // unknown, not "unverified" — the engine scores the two differently
   });
 
   if (!res.ok) {
