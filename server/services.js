@@ -287,3 +287,43 @@ export function trustDashboard(companyId) {
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Student-side tracking (the "My Jobs → Referrals" surface in ENGINEERING.md §1)
+// ---------------------------------------------------------------------------
+
+/**
+ * VOUCH-9 — what a student sees about the packets they have sent.
+ *
+ * Deliberately a narrower projection than the referrer's view: the
+ * referrer's private note to the hiring team never appears here, and neither
+ * does anything about the referrer's track record. A student learns the
+ * status of their own ask and nothing about the other side's deliberation.
+ */
+export function sentReferrals(studentId) {
+  const student = db.person(studentId);
+  if (!student) return null;
+
+  return db
+    .referralRequests()
+    .filter((r) => r.studentId === studentId)
+    .map((r) => {
+      const job = db.job(r.jobId);
+      const company = job ? db.company(job.companyId) : null;
+      const referrer = db.person(r.referrerId);
+      return {
+        id: r.id,
+        status: r.status,
+        fitScore: r.fitScore ?? null,
+        createdAt: r.createdAt,
+        decidedAt: r.decidedAt ?? null,
+        expiresAt: r.expiresAt ?? null,
+        job: job ? { id: job.id, title: job.title, team: job.team, company: company?.name ?? null } : null,
+        referrer: referrer ? { id: referrer.id, name: referrer.name, title: referrer.title } : null,
+        submittedToAts: r.atsSubmission
+          ? { provider: r.atsSubmission.provider, submittedAt: r.atsSubmission.submittedAt }
+          : null,
+      };
+    })
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}

@@ -124,3 +124,30 @@ test('sweepExpiredReferrals is idempotent — a second sweep is a no-op', () => 
 
   db.reset();
 });
+
+test('sentReferrals shows a student their own packets without the referrer’s private note', async () => {
+  const { sentReferrals } = await import('./services.js');
+  db.reset();
+  const referrer = db.people().find((p) => p.type === 'employee');
+
+  db.insert('referralRequests', {
+    id: 'rr_track_1', studentId: 'stu_neil', jobId: 'job_nw_storage', referrerId: referrer.id,
+    pitch: 'x'.repeat(50), artifactIds: [], fitScore: 91, status: 'referred',
+    createdAt: new Date().toISOString(), decidedAt: new Date().toISOString(),
+    referrerNote: 'PRIVATE — for the hiring team only',
+    atsSubmission: { provider: 'Greenhouse', submittedAt: new Date().toISOString(), visibility: 'private_to_hiring_team' },
+  });
+
+  const mine = sentReferrals('stu_neil');
+  const row = mine.find((r) => r.id === 'rr_track_1');
+
+  assert.ok(row, 'the student sees their own packet');
+  assert.equal(row.status, 'referred');
+  assert.equal(row.job.company, 'Northwind Systems');
+  assert.equal(row.submittedToAts.provider, 'Greenhouse');
+  assert.ok(!JSON.stringify(mine).includes('PRIVATE'), 'the referrer note must never reach the student');
+  assert.ok(mine.every((r) => r.id !== 'rr_1'), 'another student’s packets are not included');
+  assert.equal(sentReferrals('nobody'), null);
+
+  db.reset();
+});
