@@ -277,3 +277,21 @@ test('shield: a disclaimer cannot be used to smuggle a real fee demand past the 
   assert.equal(firedMoneyRule('No interview is needed. The registration fee is Rs 999.'), true);
   assert.equal(firedMoneyRule('Pay the training fee now, it will be refunded after joining.'), true);
 });
+
+test('shield: obfuscated fee wording is read as what it says', () => {
+  const res = assessMessage(
+    { body: 'Kindly complete r3gistration by sending the f-e-e of 1500 on G-Pay to our accounts executive.' },
+    {}, noToken,
+  );
+  const ids = res.signals.content.map((s) => s.id);
+  assert.ok(ids.includes('payment_request'), 'the fee demand must be recognised');
+  assert.ok(ids.includes('payment_rail'), 'the payment app must be recognised');
+  assert.equal(res.band, 'high');
+});
+
+test('shield: de-obfuscation leaves ordinary text, amounts, and abbreviations alone', async () => {
+  const { deobfuscate } = await import('./util.js');
+  assert.equal(deobfuscate('Stipend is Rs 25,000, e.g. paid on the 1st. Call 98450 12345.'),
+    'Stipend is Rs 25,000, e.g. paid on the 1st. Call 98450 12345.');
+  assert.equal(deobfuscate('r3gistration f-e-e'), 'registration fee');
+});

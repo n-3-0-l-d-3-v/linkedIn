@@ -22,7 +22,7 @@
  * warning they will click past.
  */
 
-import { clamp, daysBetween, extractDomains, foldHomoglyphs, levenshtein, round, rootDomain } from './util.js';
+import { clamp, daysBetween, deobfuscate, extractDomains, foldHomoglyphs, levenshtein, round, rootDomain } from './util.js';
 
 // ---------------------------------------------------------------------------
 // Content patterns
@@ -74,7 +74,7 @@ const PATTERNS = [
     weight: 55,
     explain:
       'No legitimate employer charges a candidate to be hired, trained, onboarded, or equipped. This is the single clearest fraud indicator.',
-    re: /\b(registration|processing|security|training|onboarding|refundable|application|documentation|verification)\s+(fee|charge|deposit|amount)\b|\bpay\s+(?:a\s+)?(?:rs\.?|inr|₹|\$|usd)?\s?\d|\bfee\s+of\s+(?:rs\.?|inr|₹|\$)/i,
+    re: /\b(registration|processing|security|training|onboarding|refundable|application|documentation|verification)\s+(fee|charge|deposit|amount)\b|\bpay\s+(?:a\s+)?(?:rs\.?|inr|₹|\$|usd)?\s?\d|\bfee\s+of\s+(?:rs\.?|inr|₹|\$)?\s?\d/i,
   },
   {
     id: 'payment_rail',
@@ -83,7 +83,7 @@ const PATTERNS = [
     weight: 45,
     explain:
       'Employers pay candidates through payroll. A hiring conversation that mentions UPI, gift cards, crypto, or a personal transfer app is fraud.',
-    re: /\b(upi|paytm|phonepe|gpay|google\s?pay|bitcoin|btc|usdt|crypto\s?wallet|western\s?union|gift\s?card|zelle|venmo|cash\s?app)\b/i,
+    re: /\b(upi|paytm|phonepe|g[-\s]?pay|google\s?pay|bitcoin|btc|usdt|crypto\s?wallet|western\s?union|gift\s?card|zelle|venmo|cash\s?app)\b/i,
   },
   {
     id: 'offplatform_push',
@@ -349,8 +349,13 @@ export function assessMessage(message, sender, ctx = {}) {
   let contentRisk = 0;
   let hardTriggered = false;
 
+  // Patterns read a de-obfuscated copy ("r3gistration f-e-e" reads as
+  // "registration fee"). Domains are still extracted from the original text
+  // further down, where a digit swap is itself the evidence.
+  const scanText = deobfuscate(body);
+
   for (const p of PATTERNS) {
-    const m = firstUndisclaimed(p.re, body, p.disclaimedBy);
+    const m = firstUndisclaimed(p.re, scanText, p.disclaimedBy);
     if (!m) continue;
     matched.push({
       id: p.id,
