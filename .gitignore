@@ -4,3 +4,4 @@ server/data/db.json
 *.log
 .DS_Store
 extension/*.zip
+web/dist/
