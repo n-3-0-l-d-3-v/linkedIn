@@ -12,6 +12,36 @@ import assert from 'node:assert/strict';
 import { db } from './db.js';
 import { sweepExpiredReferrals } from './services.js';
 
+/**
+ * Regression test for a real bug found while manually verifying the app:
+ * buildSeed() in seed.js returned module-level const arrays by reference, so
+ * db.insert()/db.update() permanently mutated the seed template itself.
+ * db.reset() (and POST /api/admin/reset, and the UI's "Restore seed data"
+ * button) appeared to work but silently kept returning already-polluted data
+ * for the rest of that process's lifetime. Fixed with structuredClone() in
+ * buildSeed(); this test exists so it cannot regress silently.
+ */
+test('db.reset() genuinely restores seed state after a write, not just superficially', () => {
+  db.reset();
+  const before = db.referralRequests().length;
+
+  const referrer = db.people().find((p) => p.type === 'employee');
+  db.insert('referralRequests', {
+    id: 'rr_regression_check', studentId: 'stu_neil', jobId: 'job_nw_storage', referrerId: referrer.id,
+    pitch: 'x'.repeat(50), artifactIds: [], fitScore: 80, status: 'pending',
+    createdAt: new Date().toISOString(), expiresAt: new Date().toISOString(),
+  });
+  assert.equal(db.referralRequests().length, before + 1, 'sanity: the insert actually happened');
+
+  db.reset();
+  assert.equal(
+    db.referralRequests().length, before,
+    'a second reset in the same process must return to the exact original seed count, ' +
+    'not a count still inflated by a previous write',
+  );
+  assert.equal(db.referralRequest('rr_regression_check'), null, 'the inserted record must not survive a reset');
+});
+
 test('sweepExpiredReferrals expires a stale pending packet and returns the slot', () => {
   db.reset();
 
