@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import StudentView from './views/StudentView.jsx';
 import ReferrerView from './views/ReferrerView.jsx';
+import TrackView from './views/TrackView.jsx';
 import ShieldView from './views/ShieldView.jsx';
 import EmployerView from './views/EmployerView.jsx';
 import DiscoverView from './views/DiscoverView.jsx';
@@ -8,6 +9,7 @@ import { api } from './api.js';
 
 const TABS = [
   { id: 'student', label: 'Student', icon: '◆', hint: 'Ask for a referral' },
+  { id: 'track', label: 'My referrals', icon: '≡', hint: 'Track sent packets' },
   { id: 'referrer', label: 'Referrer', icon: '◇', hint: 'Review packets' },
   { id: 'discover', label: 'Office hours', icon: '◷', hint: 'Who is open' },
   { id: 'shield', label: 'Shield', icon: '🛡', hint: 'Inbound messages' },
@@ -61,6 +63,7 @@ export default function App() {
 
       <main className="page" key={resetKey}>
         {tab === 'student' && <StudentView onSent={() => setRefreshKey((k) => k + 1)} />}
+        {tab === 'track' && <TrackView refreshKey={refreshKey} />}
         {tab === 'referrer' && <ReferrerView refreshKey={refreshKey} />}
         {tab === 'discover' && <DiscoverView />}
         {tab === 'shield' && <ShieldView />}
