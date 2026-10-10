@@ -26,6 +26,35 @@ const graph = () => buildGraph(db.affiliations());
 export const credibilityOf = (employeeId) =>
   computeCredibility(db.referralHistoryFor(employeeId), { spamReports: db.spamReportsFor(employeeId) });
 
+/**
+ * VOUCH-2 — expire pending referral packets past their TTL and return the
+ * referrer's slot. Idempotent and safe to call on every request: a packet
+ * already past `expired`/any terminal status is untouched, and re-sweeping an
+ * already-expired packet is a no-op because its status is no longer 'pending'.
+ *
+ * Returns the ids of packets it expired, mainly so callers/tests can assert
+ * on it without re-deriving state themselves.
+ */
+export function sweepExpiredReferrals(now = Date.now()) {
+  const expiredIds = [];
+  for (const r of db.referralRequests()) {
+    if (r.status !== 'pending' || !r.expiresAt) continue;
+    if (new Date(r.expiresAt).getTime() > now) continue;
+
+    db.update('referralRequests', r.id, { status: 'expired', decidedAt: new Date(now).toISOString() });
+
+    const referrer = db.person(r.referrerId);
+    if (referrer) {
+      db.update('people', r.referrerId, {
+        referralsThisMonth: Math.max(0, (referrer.referralsThisMonth ?? 1) - 1),
+      });
+    }
+    db.logEvent('referral.expired', { requestId: r.id, referrerId: r.referrerId });
+    expiredIds.push(r.id);
+  }
+  return expiredIds;
+}
+
 export function jobWithLiveness(job) {
   const company = db.company(job.companyId);
   return {
