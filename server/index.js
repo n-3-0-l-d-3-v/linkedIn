@@ -19,7 +19,7 @@ import { db } from './db.js';
 import {
   referralPlan, referrerInbox, inbox, assessOne,
   trustDashboard, rankedJobs, jobWithLiveness, credibilityOf,
-  sweepExpiredReferrals,
+  sweepExpiredReferrals, sentReferrals,
 } from './services.js';
 import { computeFit, assessMessage, mintHiringToken, verifyHiringToken, SHIELD_PATTERNS } from './engine/index.js';
 import {
@@ -212,6 +212,13 @@ app.post('/api/referrals', strict, withValidation((req, res) => {
 
   ok(res, record);
 }));
+
+/** A student's own sent packets and where each one stands. */
+app.get('/api/referrals/sent/:studentId', (req, res) => {
+  const data = sentReferrals(req.params.studentId);
+  if (!data) return fail(res, 404, 'student not found');
+  ok(res, data);
+});
 
 app.get('/api/referrals/inbox/:employeeId', (req, res) => {
   const data = referrerInbox(req.params.employeeId);
