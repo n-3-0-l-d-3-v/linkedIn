@@ -24,12 +24,29 @@ import {
   withValidation, requireString, optionalString, requireBoolean,
   optionalBoolean, requireOneOf, optionalStringArray, optionalInt, failWith,
 } from './validate.js';
+import { createLimiter, rateLimitMiddleware } from './rateLimit.js';
 
 const app = express();
 const PORT = process.env.PORT ?? 4180;
 
 app.use(cors());
 app.use(express.json({ limit: '256kb' }));
+
+/**
+ * VOUCH-4 — rate limiting.
+ *
+ * Two tiers: a generous global budget on every /api request (defends against
+ * a scripted crawl or a runaway client), and a stricter budget on the routes
+ * that actually mutate shared state — sending a referral, filing a report,
+ * scoring an arbitrary message. Those are the ones worth protecting more
+ * tightly, since they're the ones a scripted burst could actually damage
+ * (referrer capacity, credibility signals, storage growth).
+ */
+const globalLimiter = createLimiter({ windowMs: 60_000, max: 120 }); // ~2 req/s sustained
+const writeLimiter = createLimiter({ windowMs: 60_000, max: 20 });
+
+app.use('/api', rateLimitMiddleware(globalLimiter, { name: 'global' }));
+const strict = rateLimitMiddleware(writeLimiter, { name: 'write' });
 
 /**
  * VOUCH-2 — lazy expiry sweep.
@@ -79,7 +96,7 @@ app.get('/api/config/selectors', (_req, res) => {
  * accepted here — only which candidate strategies were tried and failed —
  * because this endpoint's whole job is catching drift, not scraping pages.
  */
-app.post('/api/telemetry/selector-miss', (req, res) => {
+app.post('/api/telemetry/selector-miss', strict, (req, res) => {
   const { target, pageType, extensionVersion, candidatesTried } = req.body ?? {};
   if (!target) return fail(res, 400, 'target is required');
   db.logEvent('extension.selector_miss', {
@@ -89,7 +106,7 @@ app.post('/api/telemetry/selector-miss', (req, res) => {
   ok(res, { recorded: true });
 });
 
-app.post('/api/admin/reset', (_req, res) => {
+app.post('/api/admin/reset', strict, (_req, res) => {
   db.reset();
   ok(res, { reset: true });
 });
@@ -147,7 +164,7 @@ app.get('/api/referral-plan', (req, res) => {
  *   - a fit blocker (e.g. asking two levels up) refuses the send
  *   - a referrer with no capacity left cannot be assigned
  */
-app.post('/api/referrals', withValidation((req, res) => {
+app.post('/api/referrals', strict, withValidation((req, res) => {
   const body = req.body ?? {};
   const studentId = requireString(body.studentId, 'studentId');
   const jobId = requireString(body.jobId, 'jobId');
@@ -205,7 +222,7 @@ app.get('/api/referrals/inbox/:employeeId', (req, res) => {
  * pipeline, never onto the referrer's feed. Public vouching is the social risk
  * that makes employees decline people they would privately support.
  */
-app.post('/api/referrals/:id/decision', withValidation((req, res) => {
+app.post('/api/referrals/:id/decision', strict, withValidation((req, res) => {
   const body = req.body ?? {};
   const action = requireOneOf(body.action, ['refer', 'decline', 'request_info'], 'action');
   const note = optionalString(body.note, 'note', { maxLength: 2000 });
@@ -252,7 +269,7 @@ app.post('/api/referrals/:id/decision', withValidation((req, res) => {
  * entirely. Neither is acceptable for a field other clients (the extension,
  * a future mobile client) will eventually call with partial bodies.
  */
-app.post('/api/office-hours/:employeeId', withValidation((req, res) => {
+app.post('/api/office-hours/:employeeId', strict, withValidation((req, res) => {
   const body = req.body ?? {};
   const open = optionalBoolean(body.open, 'open');
   const note = optionalString(body.note, 'note', { maxLength: 500 });
@@ -301,7 +318,7 @@ app.get('/api/shield/message/:id', (req, res) => {
  * text scraped from a live LinkedIn thread, and the one to use when demoing
  * "paste any suspicious message and watch it get scored."
  */
-app.post('/api/shield/assess', (req, res) => {
+app.post('/api/shield/assess', strict, (req, res) => {
   const { body, senderId, hiringToken, sender: senderOverride } = req.body ?? {};
   if (typeof body !== 'string' || !body.trim()) return fail(res, 400, 'body is required');
 
@@ -322,7 +339,7 @@ app.post('/api/shield/assess', (req, res) => {
 });
 
 /** Report an account. Reports feed provenance risk for every future recipient. */
-app.post('/api/shield/report', withValidation((req, res) => {
+app.post('/api/shield/report', strict, withValidation((req, res) => {
   const body = req.body ?? {};
   const messageId = requireString(body.messageId, 'messageId');
   const reporterId = optionalString(body.reporterId, 'reporterId');
@@ -350,7 +367,7 @@ app.post('/api/shield/report', withValidation((req, res) => {
  * the metric that tells you if the intervention works — and the one that
  * catches a classifier quietly drifting into false positives.
  */
-app.post('/api/shield/interaction', (req, res) => {
+app.post('/api/shield/interaction', strict, (req, res) => {
   const { messageId, action } = req.body ?? {};
   db.logEvent('shield.interaction', { messageId, action });
   ok(res, { recorded: true });
@@ -360,7 +377,7 @@ app.post('/api/shield/interaction', (req, res) => {
 // Verified Hiring Channel
 // ---------------------------------------------------------------------------
 
-app.post('/api/tokens/mint', (req, res) => {
+app.post('/api/tokens/mint', strict, (req, res) => {
   const { jobId, recruiterId } = req.body ?? {};
   const job = db.job(jobId);
   if (!job) return fail(res, 404, 'job not found');
@@ -369,7 +386,7 @@ app.post('/api/tokens/mint', (req, res) => {
   ok(res, { token, jobId: job.id, company: company?.name });
 });
 
-app.post('/api/tokens/verify', (req, res) => ok(res, verifyHiringToken(req.body?.token)));
+app.post('/api/tokens/verify', strict, (req, res) => ok(res, verifyHiringToken(req.body?.token)));
 
 // ---------------------------------------------------------------------------
 // Employer dashboard
