@@ -243,7 +243,7 @@ Start with Shield. It is the lower-risk half (it only adds information), it buil
 
 This repository contains a working implementation, not a mock.
 
-**Trust Engine** (`server/engine/`) — dependency-free, unit-tested scoring: fit + Skills Passport selection, multi-hop warm-path search, Wilson-bound credibility, requisition-aware routing, the fraud-signal ensemble, HMAC hiring tokens, posting liveness. **22 tests**, including the adversarial ones that matter: a money request stays high-risk even from an otherwise perfect sender; homoglyph and brand-embedding domains are caught; weak signals stacked together cannot alone reach the top band; a small perfect referral record does not outrank a large strong one; token tampering and expiry are rejected.
+**Trust Engine** (`server/engine/`) — dependency-free, unit-tested scoring: fit + Skills Passport selection, multi-hop warm-path search, Wilson-bound credibility, requisition-aware routing, the fraud-signal ensemble, HMAC hiring tokens, posting liveness. **Unit-tested**, including the adversarial ones that matter: a money request stays high-risk even from an otherwise perfect sender; homoglyph and brand-embedding domains are caught; weak signals stacked together cannot alone reach the top band; a small perfect referral record does not outrank a large strong one; token tampering and expiry are rejected.
 
 **API + member console** (`server/`, `web/`) — five surfaces (student, referrer, office hours, Shield, employer dashboard), all scored live against seeded data. Includes a **before/after panel** that renders what today's product does with the same student and the same requisition, and a **live scorer** where anyone can paste a real scam message they have received and watch the engine reason about it.
 

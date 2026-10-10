@@ -396,7 +396,7 @@ Affiliation materialization is the long pole in P3 and has no dependency on Shie
 
 The prototype is the reference implementation of §3's scoring core:
 
-- **`server/engine/`** — the scoring library, dependency-free and I/O-free, exactly as §4 requires it to be for the online/offline shared-artifact property. **22 tests**, including the adversarial cases.
+- **`server/engine/`** — the scoring library, dependency-free and I/O-free, exactly as §4 requires it to be for the online/offline shared-artifact property. **Unit-tested**, including the adversarial cases.
 - **`server/`** — the API shape the gRPC service would expose.
 - **`web/`** — all six surfaces from §1, rendered.
 - **`extension/`** — those surfaces rendered in position on real linkedin.com, because third-party API access to jobs and messaging does not exist.
