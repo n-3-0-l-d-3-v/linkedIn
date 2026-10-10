@@ -15,6 +15,7 @@ export const api = {
   person: (id) => call(`/people/${id}`),
   referralPlan: (studentId, jobId) => call(`/referral-plan?studentId=${studentId}&jobId=${jobId}`),
   sendReferral: (body) => call('/referrals', { method: 'POST', body: JSON.stringify(body) }),
+  sentReferrals: (studentId) => call(`/referrals/sent/${studentId}`),
   referrerInbox: (employeeId) => call(`/referrals/inbox/${employeeId}`),
   decide: (id, body) => call(`/referrals/${id}/decision`, { method: 'POST', body: JSON.stringify(body) }),
   officeHours: () => call('/office-hours'),
