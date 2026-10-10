@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Vouch for LinkedIn — Referral Bridge & Shield",
+  "version": "0.1.0",
+  "description": "Demonstrates the Vouch trust layer rendered in place on real LinkedIn pages: warm-path referral routing on job posts, and fraud interception on recruiter messages.",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "http://localhost:4180/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.linkedin.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Vouch"
+  }
+}
