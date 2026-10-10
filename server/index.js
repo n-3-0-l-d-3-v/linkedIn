@@ -7,6 +7,8 @@
  * will learn to click past.
  */
 
+import './env.js'; // VOUCH-5 — must be the first import; see server/env.js
+
 import express from 'express';
 import cors from 'cors';
 import fs from 'node:fs';
