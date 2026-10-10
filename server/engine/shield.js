@@ -185,7 +185,10 @@ export function domainRisk(domains, officialDomains = []) {
         note: `Impersonates ${closest.off} (${closest.dist} character${closest.dist > 1 ? 's' : ''} different)`,
       });
     } else if (/^(gmail|yahoo|outlook|hotmail|protonmail|rediffmail|zoho)\./.test(root)) {
-      findings.push({ domain: d, verdict: 'free_provider', risk: 8 });
+      // Informational only. The risk of a recruiter using a personal mailbox
+      // is already counted once by the `unofficial_contact` content pattern;
+      // scoring the domain as well counted the same fact twice.
+      findings.push({ domain: d, verdict: 'free_provider', risk: 0 });
     } else if (/\.(tk|ml|ga|cf|gq|top|xyz|click|link|zip|mov)$/.test(root)) {
       findings.push({ domain: d, verdict: 'high_risk_tld', risk: 20, note: 'TLD heavily abused for disposable sites' });
     } else {

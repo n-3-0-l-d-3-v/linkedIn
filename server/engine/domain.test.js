@@ -35,3 +35,18 @@ test('unrelated domains are not flagged as impersonation', () => {
 test('disposable TLDs are flagged even without a brand match', () => {
   assert.equal(verdictFor('kestrel-internships.tk'), 'high_risk_tld');
 });
+
+test('an email address yields its domain, never its local part', async () => {
+  const { extractDomains } = await import('./util.js');
+  assert.deepEqual(extractDomains('write to priya.recruits@gmail.com today'), ['gmail.com']);
+  assert.deepEqual(
+    extractDomains('mail hr@northwind.com or see careers.northwind.com/apply').sort(),
+    ['careers.northwind.com', 'northwind.com'],
+  );
+});
+
+test('a free mail provider is reported but adds no domain risk of its own', () => {
+  const [finding] = domainRisk(['gmail.com'], OFFICIAL);
+  assert.equal(finding.verdict, 'free_provider');
+  assert.equal(finding.risk, 0);
+});
