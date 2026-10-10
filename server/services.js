@@ -327,3 +327,61 @@ export function sentReferrals(studentId) {
     })
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
+
+// ---------------------------------------------------------------------------
+// Pilot metrics
+// ---------------------------------------------------------------------------
+
+const median = (sorted) => {
+  if (!sorted.length) return null;
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+};
+
+/**
+ * VOUCH-11 — the numbers a referral pilot exists to produce.
+ *
+ * `responseRate` is measured only over packets whose window has closed
+ * (answered or expired). Counting still-pending packets as non-responses
+ * would understate the rate early in a pilot and make it drift upward for no
+ * reason other than time passing.
+ */
+export function pilotMetrics() {
+  const all = db.referralRequests();
+  const count = (status) => all.filter((r) => r.status === status).length;
+
+  const answered = all.filter((r) => ['referred', 'declined', 'info_requested'].includes(r.status));
+  const expired = count('expired');
+  const closed = answered.length + expired;
+
+  const hours = answered
+    .filter((r) => r.decidedAt && r.createdAt)
+    .map((r) => (new Date(r.decidedAt) - new Date(r.createdAt)) / 3_600_000)
+    .sort((a, b) => a - b);
+
+  const rate = (n, d) => (d ? Math.round((n / d) * 1000) / 1000 : null);
+  const med = median(hours);
+
+  return {
+    sent: all.length,
+    pending: count('pending'),
+    answered: answered.length,
+    expired,
+    referred: count('referred'),
+    declined: count('declined'),
+    infoRequested: count('info_requested'),
+    responseRate: rate(answered.length, closed),
+    referralRate: rate(count('referred'), answered.length),
+    medianHoursToDecision: med == null ? null : Math.round(med * 10) / 10,
+  };
+}
+
+/** One row per packet, for analysis outside the app. No pitch text, no names. */
+export function pilotExportCsv() {
+  const header = ['packet_id', 'job_id', 'status', 'fit_score', 'created_at', 'decided_at', 'hours_to_decision'];
+  const rows = db.referralRequests().map((r) => {
+    const hrs = r.decidedAt ? ((new Date(r.decidedAt) - new Date(r.createdAt)) / 3_600_000).toFixed(1) : '';
+    return [r.id, r.jobId, r.status, r.fitScore ?? '', r.createdAt, r.decidedAt ?? '', hrs];
+  });
+  return [header, ...rows].map((cols) => cols.join(',')).join('\n') + '\n';
+}

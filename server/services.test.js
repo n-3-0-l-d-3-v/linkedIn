@@ -151,3 +151,38 @@ test('sentReferrals shows a student their own packets without the referrer’s p
 
   db.reset();
 });
+
+test('pilotMetrics measures response rate only over packets whose window has closed', async () => {
+  const { pilotMetrics, pilotExportCsv } = await import('./services.js');
+  db.reset();
+  for (const r of [...db.referralRequests()]) db.update('referralRequests', r.id, { status: 'archived_for_test' });
+
+  const referrer = db.people().find((p) => p.type === 'employee');
+  const at = (hoursAgo) => new Date(Date.now() - hoursAgo * 3_600_000).toISOString();
+  const add = (id, status, createdH, decidedH) => db.insert('referralRequests', {
+    id, studentId: 'stu_neil', jobId: 'job_nw_storage', referrerId: referrer.id,
+    pitch: 'SECRET PITCH TEXT '.repeat(4), artifactIds: [], fitScore: 80, status,
+    createdAt: at(createdH), ...(decidedH != null ? { decidedAt: at(decidedH) } : {}),
+  });
+
+  add('m1', 'referred', 30, 20);  // 10h to decide
+  add('m2', 'declined', 30, 26);  //  4h
+  add('m3', 'referred', 30, 28);  //  2h
+  add('m4', 'expired', 400, 60);
+  add('m5', 'pending', 1, null);
+
+  const m = pilotMetrics();
+  assert.equal(m.answered, 3);
+  assert.equal(m.expired, 1);
+  assert.equal(m.pending, 1);
+  assert.equal(m.responseRate, 0.75, '3 answered of 4 closed; the pending packet is not counted against it');
+  assert.equal(m.referralRate, 0.667);
+  assert.equal(m.medianHoursToDecision, 4);
+
+  const csv = pilotExportCsv();
+  assert.ok(csv.startsWith('packet_id,job_id,status'));
+  assert.ok(csv.includes('m1,job_nw_storage,referred,80'));
+  assert.ok(!csv.includes('SECRET PITCH'), 'the export must not carry pitch text');
+
+  db.reset();
+});
