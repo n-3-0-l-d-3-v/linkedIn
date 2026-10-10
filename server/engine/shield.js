@@ -203,35 +203,56 @@ export function provenanceRisk(sender) {
   const reasons = [];
   let risk = 0;
 
-  const ageDays = sender.createdAt ? daysBetween(sender.createdAt) : 999;
-  if (ageDays < 14) {
-    risk += 22;
-    reasons.push({ kind: 'bad', text: `Account created ${Math.round(ageDays)} days ago` });
-  } else if (ageDays < 90) {
-    risk += 11;
-    reasons.push({ kind: 'warn', text: `Account is under 3 months old` });
+  // "Unknown" and "known to be false" are different facts and must score
+  // differently. A caller with no sender data (the browser extension, which
+  // cannot see verification state) leaves these fields undefined or null, and
+  // that is neutral: no risk added, no trust credited. Only an explicit
+  // `false` means "we checked, and this account is unverified". Scoring the
+  // two the same made every message from an unknown sender read as a
+  // warning — measured at 12 of 12 legitimate messages flagged.
+  const known = (v) => v !== undefined && v !== null;
+  const unknown = [];
+
+  if (known(sender.createdAt)) {
+    const ageDays = daysBetween(sender.createdAt);
+    if (ageDays < 14) {
+      risk += 22;
+      reasons.push({ kind: 'bad', text: `Account created ${Math.round(ageDays)} days ago` });
+    } else if (ageDays < 90) {
+      risk += 11;
+      reasons.push({ kind: 'warn', text: `Account is under 3 months old` });
+    } else {
+      reasons.push({ kind: 'good', text: `Account active for ${Math.round(ageDays / 365)}+ years` });
+    }
   } else {
-    reasons.push({ kind: 'good', text: `Account active for ${Math.round(ageDays / 365)}+ years` });
+    unknown.push('account age');
   }
 
-  if (!sender.identityVerified) {
+  if (!known(sender.identityVerified)) {
+    unknown.push('identity verification');
+  } else if (!sender.identityVerified) {
     risk += 14;
     reasons.push({ kind: 'warn', text: 'No verified identity on the profile' });
   } else {
     reasons.push({ kind: 'good', text: 'Government-ID verified' });
   }
 
-  if (!sender.workplaceVerified) {
+  if (!known(sender.workplaceVerified)) {
+    unknown.push('workplace verification');
+  } else if (!sender.workplaceVerified) {
     risk += 20;
     reasons.push({ kind: 'bad', text: `Claims to work at ${sender.claimedCompany ?? 'a company'} but workplace is unverified` });
   } else {
     reasons.push({ kind: 'good', text: `Workplace verified at ${sender.claimedCompany}` });
   }
 
-  const conns = sender.connections ?? 0;
-  if (conns < 30) {
+  if (known(sender.connections) && sender.connections < 30) {
     risk += 12;
-    reasons.push({ kind: 'warn', text: `Only ${conns} connections` });
+    reasons.push({ kind: 'warn', text: `Only ${sender.connections} connections` });
+  }
+
+  if (unknown.length) {
+    reasons.push({ kind: 'neutral', text: `Not available here: ${unknown.join(', ')}` });
   }
 
   if ((sender.reportCount ?? 0) > 0) {

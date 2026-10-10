@@ -230,3 +230,26 @@ test('liveness: a healthy posting scores active', () => {
   });
   assert.equal(res.band, 'active');
 });
+
+// ---------------------------------------------------------------------------
+// Shield — unknown sender data (found by the VOUCH-10 evaluation harness)
+// ---------------------------------------------------------------------------
+
+test('shield: an ordinary message from a sender we know nothing about is not flagged', () => {
+  const res = assessMessage(
+    { body: 'Hi Neil, we have an intern opening on our storage team. Would you be open to a 30 minute call this week?' },
+    {}, // no sender data at all — the browser extension's situation
+    { officialDomains: ['northwind.com'], verifyToken: () => ({ valid: false, reason: 'none' }) },
+  );
+  assert.ok(res.band === 'clear' || res.band === 'low', `expected no warning, got ${res.band} (${res.risk})`);
+  assert.equal(res.breakdown.provenance, 0, 'unknown provenance must add no risk');
+});
+
+test('shield: an explicitly unverified sender still scores as risky', () => {
+  const res = assessMessage(
+    { body: 'Hi, we have an opening. Are you interested?' },
+    { identityVerified: false, workplaceVerified: false, connections: 4, createdAt: daysAgo(3) },
+    { officialDomains: ['northwind.com'], verifyToken: () => ({ valid: false, reason: 'none' }) },
+  );
+  assert.ok(res.breakdown.provenance >= 60, 'known-bad provenance must keep its full weight');
+});
