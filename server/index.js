@@ -17,6 +17,7 @@ import { db } from './db.js';
 import {
   referralPlan, referrerInbox, inbox, assessOne,
   trustDashboard, rankedJobs, jobWithLiveness, credibilityOf,
+  sweepExpiredReferrals,
 } from './services.js';
 import { computeFit, assessMessage, mintHiringToken, verifyHiringToken, SHIELD_PATTERNS } from './engine/index.js';
 
@@ -25,6 +26,23 @@ const PORT = process.env.PORT ?? 4180;
 
 app.use(cors());
 app.use(express.json({ limit: '256kb' }));
+
+/**
+ * VOUCH-2 — lazy expiry sweep.
+ *
+ * ARCHITECTURE.md §6 named this gap explicitly: "capacity returns on decline
+ * but not on timeout. A packet that is never actioned holds a slot
+ * indefinitely." Rather than run a scheduler process for a prototype, the
+ * sweep runs cheaply on every request — the dataset is small, the check is a
+ * date comparison, and it guarantees expiry is caught before any request that
+ * could be affected by stale capacity (sending, browsing office hours, the
+ * dashboard). In production this is the Espresso TTL / a scheduled job
+ * mentioned in IMPLEMENTATION.md, not a middleware.
+ */
+app.use((_req, _res, next) => {
+  sweepExpiredReferrals();
+  next();
+});
 
 const ok = (res, data) => res.json({ ok: true, data });
 const fail = (res, code, message) => res.status(code).json({ ok: false, error: message });
@@ -146,6 +164,8 @@ app.post('/api/referrals', (req, res) => {
     return fail(res, 409, `${referrer.name} has no referral capacity left this cycle. Pick another reviewer — rationing is what keeps this channel worth reading.`);
   }
 
+  const PACKET_TTL_DAYS = 14;
+  const now = new Date();
   const record = {
     id: `rr_${Date.now().toString(36)}`,
     studentId, jobId, referrerId,
@@ -153,7 +173,8 @@ app.post('/api/referrals', (req, res) => {
     artifactIds,
     fitScore: fit.score,
     status: 'pending',
-    createdAt: new Date().toISOString(),
+    createdAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + PACKET_TTL_DAYS * 86_400_000).toISOString(),
   };
 
   db.insert('referralRequests', record);
