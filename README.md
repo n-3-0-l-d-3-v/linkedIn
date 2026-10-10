@@ -28,7 +28,7 @@ That starts both processes:
 | Console | http://localhost:5180 |
 | API | http://localhost:4180 |
 
-Run the engine test suite (22 tests, no framework):
+Run the full test suite (51 tests, no framework):
 
 ```bash
 npm test
@@ -106,10 +106,32 @@ The console proves the system. The extension proves it **belongs in the product*
 
 ---
 
+## Measuring Shield
+
+```bash
+npm run eval:shield
+```
+
+Runs a labelled set of messages through Shield and prints precision, recall, and every message it got wrong. Messages are scored on content alone, with no sender information, which is how the browser extension runs.
+
+On the bundled starter set (12 fraud, 12 legitimate): **warnings are 100% precise and catch 92% of fraud**. The one miss is an opener whose only signal is an early move to Telegram. By content alone that is indistinguishable from a real recruiter offering WhatsApp; telling them apart needs sender verification, which only a native LinkedIn build has.
+
+**Read that number carefully.** The starter set is synthetic, and the rules were tuned while looking at it, so it overstates real-world accuracy. It shows the rules behave as designed and guards against regressions. The number worth quoting is the one from real messages the rules have never seen:
+
+```bash
+npm run eval:shield -- path/to/real-messages.json
+```
+
+Use the same format as [server/eval/shield-eval.json](server/eval/shield-eval.json), with identifying details removed.
+
+Pilot numbers for the referral flow are at `/api/pilot/metrics` and `/api/pilot/export.csv`.
+
+---
+
 ## Layout
 
 ```
-server/engine/   Trust Engine — zero dependencies, zero I/O, 22 tests
+server/engine/   Trust Engine — zero dependencies, zero I/O, unit-tested
 server/          REST API, composition layer, repository, seed fixtures
 web/             React console — five surfaces
 extension/       MV3 extension rendering on live linkedin.com
