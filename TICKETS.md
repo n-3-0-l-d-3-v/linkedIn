@@ -57,3 +57,44 @@ real backlog: it is not a checkbox, it is where bugs that hide inside
   server (a malicious website could read dev-server responses); does not
   ship in the production build. Fixing requires a breaking `vite` 8.x bump.
   Deferred — not a risk to the built artifact or the running API.
+
+---
+
+# Batch 2 — make it measurable
+
+Batch 1 made the prototype solid. Batch 2 is about evidence: the pieces a
+real pilot needs, and an honest way to measure Shield.
+
+| ID | Ticket | Why | Status |
+|----|--------|-----|--------|
+| VOUCH-9 | Student-side tracking — "My referrals" | ENGINEERING.md §1 lists it as a surface; it was never built. A student who sends a packet and sees nothing afterwards is back to shouting into a void. | ✅ |
+| VOUCH-10 | Shield evaluation harness + fixes it surfaced | No accuracy claim was measurable before this. | ✅ |
+| VOUCH-11 | Pilot metrics and CSV export | Response rate, referral rate, and time to decision are the numbers a pilot exists to produce. | ✅ |
+| VOUCH-12 | Pilot roster import + participant switcher | The app is hardwired to one seeded student. A real pilot needs real participants loaded from a file. | ☐ next |
+| VOUCH-13 | Selector resolver fixture tests | IMPLEMENTATION.md Track A.5 — the extension's resilience claim is currently untested. | ☐ |
+| VOUCH-14 | Extension: stale-mount teardown and per-tab response cache | IMPLEMENTATION.md Track A.4. | ☐ |
+
+## What VOUCH-10 found
+
+The first run of the harness, scoring on message content alone, flagged
+**all 12 legitimate messages**. Four separate causes, each fixed in its own
+commit with the measured effect:
+
+| Fix | Flagged precision | Flagged recall |
+|-----|-------------------|----------------|
+| Baseline | 50% | 100% |
+| Unknown sender data scored as neutral instead of as "unverified" | 71% | 83% |
+| Email local part no longer read as a domain; personal mailbox counted once | 77% | 83% |
+| Money rule ignores "we never charge a fee" style disclaimers | 100% | 83% |
+| Obfuscated wording ("r3gistration f-e-e", "G-Pay") is read | 100% | 92% |
+
+The first cause mattered most: it meant the browser extension, which can
+never see verification state, showed a warning on every conversation.
+
+Recall fell from 100% to 92% along the way, and that is the honest
+direction: the baseline "caught" all fraud only because it flagged
+everything. One fraud message is still missed on purpose (see README,
+"Measuring Shield").
+
+These numbers come from a synthetic set the rules were tuned against. They
+are a regression floor, not a claim about real-world accuracy.
