@@ -12,7 +12,7 @@
     "dev:api": "npm --workspace server run dev",
     "dev:web": "npm --workspace web run dev",
     "seed": "npm --workspace server run seed",
-    "test": "node --test server/engine/engine.test.js server/engine/domain.test.js server/services.test.js"
+    "test": "node --test server/engine/engine.test.js server/engine/domain.test.js server/services.test.js server/rateLimit.test.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"
