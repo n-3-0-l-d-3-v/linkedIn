@@ -16,8 +16,22 @@
 
 import crypto from 'node:crypto';
 
-const SECRET = process.env.VOUCH_TOKEN_SECRET ?? 'vouch-prototype-secret-do-not-ship';
+const PLACEHOLDER_SECRET = 'vouch-prototype-secret-do-not-ship';
+const SECRET = process.env.VOUCH_TOKEN_SECRET ?? PLACEHOLDER_SECRET;
 const DEFAULT_TTL_DAYS = 45;
+
+// VOUCH-5 — loud, not silent. A hiring token's entire value is that it can't
+// be forged; shipping the placeholder secret to a real deployment would mean
+// every "verified" badge in Shield is trivially fake. This must never be a
+// quiet default.
+if (SECRET === PLACEHOLDER_SECRET) {
+  console.warn(
+    '[vouch] WARNING: VOUCH_TOKEN_SECRET is not set — using the placeholder ' +
+    'signing secret. Fine for local development; anyone who reads the source ' +
+    'can forge hiring tokens against this instance. Set VOUCH_TOKEN_SECRET ' +
+    '(see .env.example) before any shared or public deployment.',
+  );
+}
 
 const b64u = (buf) => Buffer.from(buf).toString('base64url');
 const unb64u = (s) => Buffer.from(s, 'base64url').toString('utf8');
