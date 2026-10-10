@@ -12,9 +12,11 @@
     "dev:api": "npm --workspace server run dev",
     "dev:web": "npm --workspace web run dev",
     "seed": "npm --workspace server run seed",
+    "package:extension": "node scripts/package-extension.mjs",
     "test": "node --test server/engine/engine.test.js server/engine/domain.test.js server/services.test.js server/rateLimit.test.js server/env.test.js"
   },
   "devDependencies": {
+    "archiver": "^7.0.1",
     "concurrently": "^9.1.0"
   },
   "engines": {

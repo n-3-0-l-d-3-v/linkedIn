@@ -5,3 +5,4 @@ server/data/db.json
 .DS_Store
 extension/*.zip
 web/dist/
+/dist/
