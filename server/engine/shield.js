@@ -32,9 +32,43 @@ import { clamp, daysBetween, extractDomains, foldHomoglyphs, levenshtein, round,
 // and route money through channels an employer would never use.
 // ---------------------------------------------------------------------------
 
+/**
+ * Wording that, directly before a fee mention, means the sender is saying
+ * the candidate does NOT pay: "we never charge any registration fee",
+ * "there is no application fee", "we cover the verification fee".
+ *
+ * Honest employers write exactly these sentences in anti-fraud notices, and
+ * without this guard the money rule — a hard rule — fired on all of them.
+ * It is deliberately narrow. It must sit immediately before the fee mention,
+ * and it is checked per occurrence, so "we never ask for a registration fee,
+ * but a refundable deposit is required" still trips on the second mention.
+ * "Refunded" and "reimbursed" are intentionally absent: "pay now, refunded
+ * later" is the scam's own script.
+ */
+const DISCLAIMS_PAYMENT = new RegExp(
+  '(?:' + [
+    String.raw`\b(?:never|not|don'?t|do not|won'?t|will not|doesn'?t|does not|cannot|can'?t)\s+(?:ever\s+)?(?:ask|charge|request|require|demand|collect|take|need)\b[^.!?\n]{0,40}`,
+    String.raw`\b(?:there\s+is\s+)?no\s+`,
+    String.raw`\b(?:we|the company|your employer)\s+(?:will\s+)?(?:cover|bear|pay)s?\s+(?:for\s+)?(?:the\s+|all\s+|any\s+|your\s+)?(?:\w+\s+)?`,
+  ].join('|') + ')$',
+  'i',
+);
+
+/** First occurrence of `re` that is not immediately preceded by a disclaimer. */
+function firstUndisclaimed(re, text, disclaimedBy) {
+  if (!disclaimedBy) return text.match(re);
+  const global = new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`);
+  for (const m of text.matchAll(global)) {
+    const before = text.slice(Math.max(0, m.index - 90), m.index);
+    if (!disclaimedBy.test(before)) return m;
+  }
+  return null;
+}
+
 const PATTERNS = [
   {
     id: 'payment_request',
+    disclaimedBy: DISCLAIMS_PAYMENT,
     label: 'Asks the candidate for money',
     hard: true,
     weight: 55,
@@ -316,7 +350,7 @@ export function assessMessage(message, sender, ctx = {}) {
   let hardTriggered = false;
 
   for (const p of PATTERNS) {
-    const m = body.match(p.re);
+    const m = firstUndisclaimed(p.re, body, p.disclaimedBy);
     if (!m) continue;
     matched.push({
       id: p.id,

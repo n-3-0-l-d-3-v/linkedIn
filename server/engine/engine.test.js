@@ -253,3 +253,27 @@ test('shield: an explicitly unverified sender still scores as risky', () => {
   );
   assert.ok(res.breakdown.provenance >= 60, 'known-bad provenance must keep its full weight');
 });
+
+// ---------------------------------------------------------------------------
+// Shield — the money rule and disclaimers
+// ---------------------------------------------------------------------------
+
+const noToken = { officialDomains: ['northwind.com'], verifyToken: () => ({ valid: false, reason: 'none' }) };
+const firedMoneyRule = (body) =>
+  assessMessage({ body }, {}, noToken).signals.content.some((s) => s.id === 'payment_request');
+
+test('shield: an employer saying candidates never pay does not trip the money rule', () => {
+  assert.equal(firedMoneyRule('We never charge candidates any registration fee, at any stage.'), false);
+  assert.equal(firedMoneyRule('There is no application fee and you do not need an agent.'), false);
+  assert.equal(firedMoneyRule('We cover the background verification fee, so there is nothing for you to pay.'), false);
+});
+
+test('shield: a disclaimer cannot be used to smuggle a real fee demand past the money rule', () => {
+  assert.equal(
+    firedMoneyRule('We never ask for a registration fee. However a refundable deposit of Rs 2,000 is required to confirm.'),
+    true,
+    'the second, undisclaimed mention must still fire',
+  );
+  assert.equal(firedMoneyRule('No interview is needed. The registration fee is Rs 999.'), true);
+  assert.equal(firedMoneyRule('Pay the training fee now, it will be refunded after joining.'), true);
+});
