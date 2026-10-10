@@ -171,3 +171,20 @@ export const extractDomains = (text = '') => {
 
 /** Registrable-ish root: last two labels. Good enough outside the PSL. */
 export const rootDomain = (host = '') => host.split('.').slice(-2).join('.');
+
+/**
+ * Undo the cheap tricks used to slip trigger words past keyword filters:
+ * digits standing in for letters inside a word ("r3gistration") and single
+ * letters split by punctuation ("f-e-e", "f.e.e").
+ *
+ * Deliberately conservative. A digit is only folded when it sits between two
+ * letters, so amounts ("Rs 4,999"), dates, and phone numbers are untouched;
+ * and only runs of three or more separated single letters are joined, so
+ * "e.g." and "i.e." survive. Never apply this to domains — there the digit
+ * swap is the evidence, and foldHomoglyphs handles it on purpose.
+ */
+const LEET = { 0: 'o', 1: 'i', 3: 'e', 4: 'a', 5: 's', 7: 't' };
+export const deobfuscate = (text = '') =>
+  String(text)
+    .replace(/(?<=[a-z])[013457](?=[a-z])/gi, (d) => LEET[d])
+    .replace(/\b[a-z](?:[-._*][a-z]){2,}\b/gi, (run) => run.replace(/[^a-z]/gi, ''));
