@@ -508,7 +508,17 @@ const referralRequests = [
 // ---------------------------------------------------------------------------
 
 export function buildSeed() {
-  return {
+  // structuredClone is load-bearing here, not defensive decoration: every
+  // collection below (companies, jobs, referralRequests, ...) is a
+  // module-level const populated once at import time. db.insert()/db.update()
+  // mutate whatever object buildSeed() hands back — without a deep clone,
+  // db.reset() (and POST /api/admin/reset, and the UI's "Restore seed data"
+  // button) would keep returning the SAME, already-mutated arrays on every
+  // call within one running process, silently failing to actually reset
+  // anything. Confirmed live: without this, a sent-then-declined referral
+  // request survived repeated resets because `referralRequests.push()` had
+  // permanently appended it to this module's shared array.
+  return structuredClone({
     meta: { generatedAt: new Date().toISOString(), version: 1 },
     companies,
     people: [...students, ...employees, ...bridges, ...recruiters],
@@ -520,7 +530,7 @@ export function buildSeed() {
     referralRequests,
     reports: [],
     events: [],
-  };
+  });
 }
 
 const DB_PATH = path.join(__dirname, 'data', 'db.json');
