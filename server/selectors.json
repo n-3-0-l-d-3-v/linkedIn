@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-24T00:00:00.000Z",
+  "note": "Hot-editable without redeploying the extension. Order = priority: data-test/aria attributes first (LinkedIn's own automated tests depend on these, so they churn least), then structural role heuristics, then legacy class names (tried last — most brittle).",
+  "targets": {
+    "jobAnchor": [
+      { "strategy": "attr", "value": "[data-view-name='job-details']" },
+      { "strategy": "css", "value": ".jobs-unified-top-card" },
+      { "strategy": "css", "value": ".job-details-jobs-unified-top-card__container--two-pane" },
+      { "strategy": "css", "value": ".jobs-details__main-content .jobs-box" },
+      { "strategy": "css", "value": ".job-view-layout" },
+      { "strategy": "css", "value": "main" }
+    ],
+    "messageThread": [
+      { "strategy": "attr", "value": "[data-view-name='message-list']" },
+      { "strategy": "css", "value": ".msg-s-message-list-content" },
+      { "strategy": "css", "value": ".msg-s-message-list" },
+      { "strategy": "css", "value": ".msg-conversation-card__content--selectable" },
+      { "strategy": "css", "value": ".scaffold-layout__detail" }
+    ],
+    "messageBubble": [
+      { "strategy": "attr", "value": "[data-view-name='message-bubble']" },
+      { "strategy": "css", "value": ".msg-s-event-listitem__body" },
+      { "strategy": "css", "value": ".msg-s-event__content" },
+      { "strategy": "css", "value": ".msg-s-event-listitem" }
+    ]
+  }
+}
